@@ -1,0 +1,141 @@
+**Proof of Concept (POC) for Kafka Connect with JDBC Sink Connector**
+
+## **Objective**
+To set up a Kafka Connect pipeline that consumes messages from a Kafka topic, filters specific records, and inserts the valid records into a MySQL database using the JDBC Sink Connector.
+
+---
+
+## **Prerequisites**
+1. **Kafka & Zookeeper Installed**
+   - Download and extract Kafka (`kafka_2.12-3.5.0`)
+   - Start Zookeeper & Kafka:
+     ```sh
+     bin/zookeeper-server-start.sh config/zookeeper.properties
+     bin/kafka-server-start.sh config/server.properties
+     ```
+
+2. **MySQL Database**
+   - Install MySQL & create a database:
+     ```sql
+     CREATE DATABASE kafka_db;
+     ```
+   - Create a `users` table:
+     ```sql
+     CREATE TABLE users (
+         id INT PRIMARY KEY,
+         name VARCHAR(255),
+         email VARCHAR(255),
+         age INT,
+         created_at TIMESTAMP
+     );
+     ```
+
+3. **Kafka Connect & JDBC Connector**
+   - Download JDBC Sink Connector from [Confluent Hub](https://www.confluent.io/hub/confluentinc/kafka-connect-jdbc)
+   - Move extracted files to `C:\kafka\plugins\kafka-connect-jdbc`
+   - Ensure MySQL JDBC driver is placed inside the `plugins` directory
+   - Set plugin path in `config/connect-distributed.properties`:
+     ```properties
+     plugin.path=C:\kafka\plugins
+     ```
+
+---
+
+## **Step 1: Create Kafka Topic**
+```sh
+bin/kafka-topics.sh --create --topic users_topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+```
+
+---
+
+## **Step 2: Produce Sample Data**
+```sh
+bin/kafka-console-producer.sh --broker-list localhost:9092 --topic users_topic
+```
+Paste sample messages in JSON format:
+```json
+{"id": 1, "name": "Alice", "email": "alice@example.com", "age": 25}
+{"id": 2, "name": "Bob", "email": "bob@example.com", "age": 17}
+```
+
+---
+
+## **Step 3: Configure JDBC Sink Connector**
+Create a JSON config file `jdbc-sink-config.json`:
+```json
+{
+  "name": "jdbc-sink-connector",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+    "tasks.max": "1",
+    "topics": "users_topic",
+    "connection.url": "jdbc:mysql://localhost:3306/kafka_db?useSSL=false",
+    "connection.user": "root",
+    "connection.password": "your_password",
+    "auto.create": "true",
+    "auto.evolve": "true",
+    "insert.mode": "upsert",
+    "pk.fields": "id",
+    "pk.mode": "record_value",
+    "table.name.format": "users",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "transforms": "filterUsers",
+    "transforms.filterUsers.type": "org.apache.kafka.connect.transforms.Filter",
+    "transforms.filterUsers.predicate": "userFilter",
+    "predicates.userFilter.type": "org.apache.kafka.connect.transforms.predicates.ValueField",
+    "predicates.userFilter.field": "age",
+    "predicates.userFilter.predicate": "org.apache.kafka.connect.transforms.predicates.NumericGreaterThan",
+    "predicates.userFilter.value": "18"
+  }
+}
+```
+
+---
+
+## **Step 4: Deploy the Connector**
+```sh
+curl -X POST -H "Content-Type: application/json" --data @jdbc-sink-config.json http://localhost:8083/connectors
+```
+
+---
+
+## **Step 5: Verify Data in MySQL**
+Run the following SQL query:
+```sql
+SELECT * FROM users;
+```
+Expected output:
+```
++----+-------+-------------------+-----+---------------------+
+| id | name  | email             | age | created_at         |
++----+-------+-------------------+-----+---------------------+
+|  1 | Alice | alice@example.com |  25 | 2025-02-05 10:00:00 |
++----+-------+-------------------+-----+---------------------+
+```
+*Note: Bob (age 17) was **filtered out** and **not inserted** into MySQL.*
+
+---
+
+## **Step 6: Clean Up**
+To stop Kafka Connect:
+```sh
+bin/kafka-connect-stop.sh
+```
+To remove the connector:
+```sh
+curl -X DELETE http://localhost:8083/connectors/jdbc-sink-connector
+```
+
+---
+
+## **Conclusion**
+This POC successfully demonstrates:
+✅ Kafka Connect setup with JDBC Sink Connector  
+✅ Filtering messages (e.g., `age > 18`) before database insertion  
+✅ End-to-end integration between Kafka and MySQL
+
+🚀 **Next Steps:**
+- Implement more complex filtering using Kafka Streams
+- Enhance schema evolution for dynamic table changes
+
