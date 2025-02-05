@@ -10,8 +10,8 @@ To set up a Kafka Connect pipeline that consumes messages from a Kafka topic, fi
    - Download and extract Kafka (`kafka_2.12-3.5.0`)
    - Start Zookeeper & Kafka:
      ```sh
-     bin/zookeeper-server-start.sh config/zookeeper.properties
-     bin/kafka-server-start.sh config/server.properties
+     bin\windows\zookeeper-server-start.bat config\zookeeper.properties
+     bin\windows\kafka-server-start.bat config\server.properties
      ```
 
 2. **MySQL Database**
@@ -34,7 +34,7 @@ To set up a Kafka Connect pipeline that consumes messages from a Kafka topic, fi
    - Download JDBC Sink Connector from [Confluent Hub](https://www.confluent.io/hub/confluentinc/kafka-connect-jdbc)
    - Move extracted files to `C:\kafka\plugins\kafka-connect-jdbc`
    - Ensure MySQL JDBC driver is placed inside the `plugins` directory
-   - Set plugin path in `config/connect-distributed.properties`:
+   - Set plugin path in `config\connect-distributed.properties`:
      ```properties
      plugin.path=C:\kafka\plugins
      ```
@@ -43,14 +43,14 @@ To set up a Kafka Connect pipeline that consumes messages from a Kafka topic, fi
 
 ## **Step 1: Create Kafka Topic**
 ```sh
-bin/kafka-topics.sh --create --topic users_topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+bin\windows\kafka-topics.bat --create --topic users_topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
 ```
 
 ---
 
 ## **Step 2: Produce Sample Data**
 ```sh
-bin/kafka-console-producer.sh --broker-list localhost:9092 --topic users_topic
+bin\windows\kafka-console-producer.bat --broker-list localhost:9092 --topic users_topic
 ```
 Paste sample messages in JSON format:
 ```json
@@ -120,7 +120,7 @@ Expected output:
 ## **Step 6: Clean Up**
 To stop Kafka Connect:
 ```sh
-bin/kafka-connect-stop.sh
+bin\windows\kafka-connect-stop.bat
 ```
 To remove the connector:
 ```sh
