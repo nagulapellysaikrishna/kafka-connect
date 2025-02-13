@@ -1,0 +1,208 @@
+Since your application does not have APIs, we will focus on **Kafka producer and consumer testing** without API interaction. The testing plan will emphasize **unit, integration, automation, and manual testing for Kafka messages**.  
+
+---
+
+# **Revised Testing Plan for Kafka in Spring Boot (Without APIs)**  
+
+## **1. Objective**  
+✅ Ensure Kafka **producers send messages correctly**.  
+✅ Verify Kafka **consumers process messages accurately**.  
+✅ **End-to-end testing** between producer and consumer.  
+✅ **Automation testing** for stability and reliability.  
+✅ **Manual testing** to verify real-time Kafka message flow.  
+
+---
+
+## **2. Test Environment Setup**  
+### **2.1. Prerequisites**  
+- **Kafka & Zookeeper running** (via Docker or manually).  
+  ```sh
+  docker-compose up -d
+  ```
+- **Spring Boot application running with Kafka producer and consumer.**  
+- **Kafka topic created** (if auto-creation is disabled).  
+  ```sh
+  kafka-topics.sh --create --topic user-topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+  ```
+
+---
+
+## **3. Test Scenarios**  
+### **3.1. Unit Testing (Component-Level)**
+✅ **Goal:** Ensure Kafka producer and consumer logic works independently.  
+✅ **Tools:** JUnit, Mockito, KafkaTemplate (Mocked).  
+
+#### **✅ Test Cases for Producer**
+| **Test Case ID** | **Scenario** | **Expected Result** |
+|-----------------|-------------|--------------------|
+| UT-01 | Send a valid user event | KafkaTemplate sends event successfully |
+| UT-02 | Send a null user event | Handle exception gracefully |
+| UT-03 | Verify correct topic usage | Producer sends to the correct topic |
+
+**Implementation Example:**
+```java
+@SpringBootTest
+@RunWith(MockitoJUnitRunner.class)
+public class UserProducerTest {
+    @Mock
+    private KafkaTemplate<String, User> kafkaTemplate;
+
+    private UserProducer userProducer;
+
+    @Before
+    public void setup() {
+        userProducer = new UserProducer(kafkaTemplate);
+    }
+
+    @Test
+    public void testSendUser() {
+        User user = new User("1", "John Doe", "john@example.com");
+
+        userProducer.sendUser(user);
+
+        verify(kafkaTemplate, times(1)).send(eq("user-topic"), any(User.class));
+    }
+}
+```
+
+#### **✅ Test Cases for Consumer**
+| **Test Case ID** | **Scenario** | **Expected Result** |
+|-----------------|-------------|--------------------|
+| UT-04 | Consume a valid user event | Log message successfully |
+| UT-05 | Consume an invalid message | Log error but continue processing |
+| UT-06 | Consumer retries on failure | Retries based on retry configuration |
+
+**Implementation Example:**
+```java
+@SpringBootTest
+public class UserConsumerTest {
+    @Autowired
+    private UserConsumer userConsumer;
+
+    @Test
+    public void testConsumeValidMessage() {
+        User user = new User("1", "John Doe", "john@example.com");
+        
+        userConsumer.listen(user);
+
+        // Verify logs or use assertions if data is stored
+    }
+}
+```
+
+---
+
+### **3.2. Integration Testing (Kafka Producer + Consumer)**
+✅ **Goal:** Ensure Kafka producer sends messages and consumer receives them correctly.  
+✅ **Tools:** Embedded Kafka, Spring Boot Test.  
+
+#### **✅ Test Cases for Kafka Integration**
+| **Test Case ID** | **Scenario** | **Expected Result** |
+|-----------------|-------------|--------------------|
+| IT-01 | Send a valid user event to Kafka | Consumer receives the event |
+| IT-02 | Simulate Kafka unavailability | Producer retries or logs error |
+| IT-03 | Process messages from a topic with multiple consumers | Messages are evenly distributed |
+
+**Implementation Example:**
+```java
+@SpringBootTest
+@EmbeddedKafka(partitions = 1, topics = "user-topic", brokerProperties = {"listeners=PLAINTEXT://localhost:9092", "port=9092"})
+public class KafkaIntegrationTest {
+    @Autowired
+    private KafkaTemplate<String, User> kafkaTemplate;
+
+    @Test
+    public void testKafkaProducerConsumer() throws Exception {
+        User user = new User("2", "Alice", "alice@example.com");
+
+        kafkaTemplate.send("user-topic", user);
+
+        // Wait and verify logs
+        Thread.sleep(2000);
+    }
+}
+```
+
+---
+
+### **3.3. Automation Testing (End-to-End Kafka Workflow)**
+✅ **Goal:** Automate Kafka producer-consumer interactions.  
+✅ **Tools:** TestContainers, Log Verification Scripts.  
+
+#### **✅ Test Cases for Automation**
+| **Test Case ID** | **Scenario** | **Expected Result** |
+|-----------------|-------------|--------------------|
+| AT-01 | Send a message programmatically | Message appears in Kafka |
+| AT-02 | Verify consumer receives message | Log verification script passes |
+| AT-03 | Simulate consumer failure and recovery | Consumer reprocesses missed messages |
+
+**Implementation Example (Using TestContainers for Kafka)**
+```java
+@Testcontainers
+@SpringBootTest
+public class KafkaE2ETest {
+    @Container
+    public static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka"));
+
+    @Autowired
+    private KafkaTemplate<String, User> kafkaTemplate;
+
+    @Test
+    public void testProducerConsumerFlow() {
+        User user = new User("5", "Eve", "eve@example.com");
+        kafkaTemplate.send("user-topic", user);
+
+        // Verify using consumer logs
+    }
+}
+```
+
+---
+
+### **3.4. Manual Testing**
+✅ **Goal:** Ensure Kafka producer, consumer, and messages work as expected.  
+
+#### **✅ Test Cases for Manual Testing**
+| **Test Case ID** | **Scenario** | **Steps** | **Expected Result** |
+|-----------------|-------------|----------|--------------------|
+| MT-01 | Produce a user event manually | Use `kafka-console-producer` | Message appears in consumer logs |
+| MT-02 | Consume messages manually | Use `kafka-console-consumer` | Messages display correctly |
+| MT-03 | Simulate broker failure | Stop Kafka, send event, restart | Retry mechanism works |
+
+#### **Manual Commands**
+- **Produce message:**
+  ```sh
+  echo '{"id":"4","name":"Eve","email":"eve@example.com"}' | kafka-console-producer --broker-list localhost:9092 --topic user-topic
+  ```
+- **Consume messages:**
+  ```sh
+  kafka-console-consumer --bootstrap-server localhost:9092 --topic user-topic --from-beginning
+  ```
+- **Simulate failure and recovery:**
+  ```sh
+  docker stop kafka
+  docker start kafka
+  ```
+
+---
+
+## **4. Reporting & Logs**
+- **Unit Tests:** JUnit/TestNG reports.  
+- **Integration Tests:** Kafka logs and consumer verification.  
+- **Automation Tests:** Generate logs for verification.  
+- **Manual Testing:** Use `kafka-console-consumer` for message validation.  
+
+---
+
+## **5. Conclusion & Next Steps**
+✅ **Unit tests** validate producers and consumers separately.  
+✅ **Integration tests** confirm Kafka message flow.  
+✅ **Automation tests** ensure stability and scalability.  
+✅ **Manual tests** provide real-time verification.  
+
+🚀 **Next Steps:**
+- Implement **Kafka monitoring** (Prometheus + Grafana).  
+- Set up **Chaos testing** to simulate failures.  
+- Optimize **Kafka consumer performance** (batch processing).  
+
+Would you like additional **performance testing** strategies for Kafka? 😊
