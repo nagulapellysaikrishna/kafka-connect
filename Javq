@@ -1,0 +1,26 @@
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
+
+public class DateToUTC {
+    public static void main(String[] args) {
+        String inputDate = "2023-10-05 15:30";
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+        // Parse the input as LocalDateTime
+        LocalDateTime localDateTime = LocalDateTime.parse(inputDate, formatter);
+
+        // Manually calculate the offset (e.g., for "America/New_York")
+        ZoneId zone = ZoneId.of("America/New_York");
+        ZoneOffset offset = zone.getRules().getOffset(localDateTime);
+
+        // Convert to UTC
+        LocalDateTime utcTime = localDateTime.minusSeconds(offset.getTotalSeconds());
+
+        // Convert to Date
+        Date dateInUTC = Date.from(utcTime.toInstant(ZoneOffset.UTC));
+
+        System.out.println("UTC Time: " + utcTime.format(formatter));
+        System.out.println("Date object in UTC: " + dateInUTC);
+    }
+}
