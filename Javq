@@ -1,46 +1,31 @@
-import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.time.ZoneId;
-import java.time.Instant;
-import java.util.Date;
-import java.text.SimpleDateFormat;
 
-public class DateConverter {
+public class Main {
 
-    // Method to convert to UTC and return a Date object
-    public static Date convertToUTC(String inputDate, String inputFormat) {
-        try {
-            // Create a formatter for the input format
-            DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern(inputFormat);
+	public static void main(String[] args) throws Exception
+	{
+		DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter
+								.ofPattern("dd/MM/uuuu'T'HH:mm:ss:SSSXXXXX");
 
-            // Parse the input date to a LocalDateTime
-            LocalDateTime localDateTime = LocalDateTime.parse(inputDate, inputFormatter);
+		//Date string with offset information
+		String dateString = "03/08/2019T16:20:17:717+05:30";
 
-            // Convert to UTC
-            ZonedDateTime utcZonedDateTime = localDateTime.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneId.of("UTC"));
+		//Instance with given offset
+		OffsetDateTime odtInstanceAtOffset = OffsetDateTime.parse(dateString, DATE_TIME_FORMATTER);
 
-            // Convert ZonedDateTime to Date
-            Instant instant = utcZonedDateTime.toInstant();
-            return Date.from(instant);
-        } catch (Exception e) {
-            System.out.println("Invalid date or format: " + e.getMessage());
-            return null; // Return null in case of an error
-        }
-    }
+		//Instance in UTC
+		OffsetDateTime odtInstanceAtUTC = odtInstanceAtOffset.withOffsetSameInstant(ZoneOffset.UTC);
 
-    public static void main(String[] args) {
-        // Example usage
-        String inputDate = "2025-02-18 14:30:00";
-        String inputFormat = "yyyy-MM-dd HH:mm:ss";
+		//Formatting to string
+		String dateStringInUTC = odtInstanceAtUTC.format(DATE_TIME_FORMATTER);
 
-        Date result = convertToUTC(inputDate, inputFormat);
+		System.out.println(odtInstanceAtOffset);
+		System.out.println(odtInstanceAtUTC);
+		System.out.println(dateStringInUTC);
 
-        if (result != null) {
-            // Format the Date to display it in UTC
-            SimpleDateFormat utcFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss 'UTC'");
-            utcFormatter.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
-            System.out.println("Converted date (Date object in UTC): " + utcFormatter.format(result));
-        }
-    }
-}
+		//Convert OffsetDateTime to instant which is in UTC
+		System.out.println(odtInstanceAtOffset.toInstant());
+	}
+} 
