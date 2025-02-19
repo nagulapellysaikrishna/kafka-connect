@@ -1,0 +1,23 @@
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class KafkaOffsetController {
+
+    @Autowired
+    private KafkaOffsetConsumer kafkaOffsetConsumer;
+
+    @GetMapping("/readFromOffset")
+    public String readFromOffset(@RequestParam int partition, @RequestParam long offset) {
+        kafkaOffsetConsumer.readFromOffset(partition, offset);
+        return "Reading messages from partition " + partition + " starting at offset " + offset;
+    }
+
+    @GetMapping("/readFromTimestamp")
+    public String readFromTimestamp(@RequestParam int partition, @RequestParam long timestamp) {
+        kafkaOffsetConsumer.readFromTimestamp(partition, timestamp);
+        return "Reading messages from partition " + partition + " starting from timestamp " + timestamp;
+    }
+}
