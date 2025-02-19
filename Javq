@@ -1,31 +1,98 @@
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.Date;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.TimeZone;
 
-public class Main {
+public class DateConverter {
 
-	public static void main(String[] args) throws Exception
-	{
-		DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter
-								.ofPattern("dd/MM/uuuu'T'HH:mm:ss:SSSXXXXX");
+    public static Date convertToUTCDate(String inputDateString) {
+        if (inputDateString == null || inputDateString.trim().isEmpty()) {
+            return null;
+        }
 
-		//Date string with offset information
-		String dateString = "03/08/2019T16:20:17:717+05:30";
+        try {
+            OffsetDateTime offsetDateTime = OffsetDateTime.parse(inputDateString);
+            return Date.from(offsetDateTime.toInstant());
+        } catch (DateTimeParseException e) {
+            System.err.println("Error parsing date string: " + e.getMessage());
+            return null;
+        }
+    }
+    public static Date convertStringToUTCDate_SimpleDateFormat(String inputDateString) {
+        if (inputDateString == null || inputDateString.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+            inputFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+            return inputFormat.parse(inputDateString);
+        } catch (ParseException e) {
+            System.err.println("Error parsing date using SimpleDateFormat: " + e.getMessage());
+            return null;
+        }
+    }
 
-		//Instance with given offset
-		OffsetDateTime odtInstanceAtOffset = OffsetDateTime.parse(dateString, DATE_TIME_FORMATTER);
+    public static Date parseFormattedUTCToDate(String formattedDateString) {
+        if (formattedDateString == null || formattedDateString.trim().isEmpty()) {
+            return null;
+        }
 
-		//Instance in UTC
-		OffsetDateTime odtInstanceAtUTC = odtInstanceAtOffset.withOffsetSameInstant(ZoneOffset.UTC);
+        // 1. Using java.time (Recommended)
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                    .withZone(ZoneOffset.UTC);
+            Instant instant = Instant.from(formatter.parse(formattedDateString));
+            return Date.from(instant);
+        } catch (DateTimeParseException e) {
+            System.err.println("Error parsing formatted date string (java.time): " + e.getMessage());
+            // return null; // Or re-throw the exception
+            //For continue the execution with SimpleDateFormat
+        }
 
-		//Formatting to string
-		String dateStringInUTC = odtInstanceAtUTC.format(DATE_TIME_FORMATTER);
+        // 2. Using SimpleDateFormat (Legacy)
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+            return sdf.parse(formattedDateString);
+        } catch (ParseException e) {
+            System.err.println("Error parsing formatted date string (SimpleDateFormat): " + e.getMessage());
+            return null; // Or throw an exception
+        }
+    }
+    public static void main(String[] args) {
+        String inputDateString = "2025-02-19T01:55:40Z";
 
-		System.out.println(odtInstanceAtOffset);
-		System.out.println(odtInstanceAtUTC);
-		System.out.println(dateStringInUTC);
+        // --- java.time (Recommended) ---
+        Date utcDate = convertToUTCDate(inputDateString);
+        if (utcDate != null) {
 
-		//Convert OffsetDateTime to instant which is in UTC
-		System.out.println(odtInstanceAtOffset.toInstant());
-	}
-} 
+            // Formatting with SimpleDateFormat (Correct Way to Display in UTC)
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+            String formattedDateString =  sdf.format(utcDate);
+            System.out.println("SimpleDateFormat (UTC): " + formattedDateString);
+
+            // 2. Formatting with java.time.format.DateTimeFormatter (Best Practice)
+            Instant instant = utcDate.toInstant();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                    .withZone(ZoneOffset.UTC);
+            formattedDateString = formatter.format(instant);
+            System.out.println("DateTimeFormatter (UTC): " + formattedDateString);
+
+            //Parse formatted String
+            Date parsedDate = parseFormattedUTCToDate(formattedDateString);
+            if(parsedDate != null){
+                System.out.println("Parsed Date from Formatted String: " + parsedDate); //Default System TimeZone
+                //If you want format.
+                System.out.println("Parsed Date from Formatted String (UTC Formatted): " + sdf.format(parsedDate));
+            }
+
+
+        }
+    }
+}
