@@ -21,3 +21,48 @@ public class KafkaOffsetController {
         return "Reading messages from partition " + partition + " starting from timestamp " + timestamp;
     }
 }
+
+@Component
+public class KafkaConsumerService {
+
+    @Autowired
+    private KafkaListenerEndpointRegistry registry;
+
+    @KafkaListener(id = "my-consumer", topics = "your-topic", groupId = "your-group", containerFactory = "kafkaListenerContainerFactory")
+    public void listen(String message, @Header(KafkaHeaders.RECEIVED_PARTITION) int partition, 
+                       @Header(KafkaHeaders.OFFSET) long offset) {
+        System.out.println("Received: " + message + " from partition: " + partition + " at offset: " + offset);
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void resetOffset() {
+        registry.getListenerContainer("my-consumer").pause(); // Pause the listener
+        registry.getListenerContainer("my-consumer").getAssignedPartitions()
+                .forEach(topicPartition -> {
+                    registry.getListenerContainer("my-consumer").getConsumer()
+                            .seek(topicPartition, 0L);  // Reset to offset 0
+                });
+        registry.getListenerContainer("my-consumer").resume(); // Resume the listener
+    }
+}
+
+@Component
+public class KafkaConsumerService implements ConsumerSeekAware {
+
+    private ConsumerSeekCallback seekCallback;
+
+    @Override
+    public void registerSeekCallback(ConsumerSeekCallback callback) {
+        this.seekCallback = callback;
+    }
+
+    @KafkaListener(topics = "your-topic", groupId = "your-group")
+    public void listen(String message, @Header(KafkaHeaders.RECEIVED_PARTITION) int partition) {
+        System.out.println("Received: " + message + " from partition: " + partition);
+    }
+
+    public void resetOffsetTo(long offset) {
+        seekCallback.seek("your-topic", 0, offset); // Seek to a specific offset
+    }
+}
+
