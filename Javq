@@ -1,26 +1,46 @@
-import java.time.*;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.ZoneId;
+import java.time.Instant;
 import java.util.Date;
+import java.text.SimpleDateFormat;
 
-public class DateToUTC {
+public class DateConverter {
+
+    // Method to convert to UTC and return a Date object
+    public static Date convertToUTC(String inputDate, String inputFormat) {
+        try {
+            // Create a formatter for the input format
+            DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern(inputFormat);
+
+            // Parse the input date to a LocalDateTime
+            LocalDateTime localDateTime = LocalDateTime.parse(inputDate, inputFormatter);
+
+            // Convert to UTC
+            ZonedDateTime utcZonedDateTime = localDateTime.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneId.of("UTC"));
+
+            // Convert ZonedDateTime to Date
+            Instant instant = utcZonedDateTime.toInstant();
+            return Date.from(instant);
+        } catch (Exception e) {
+            System.out.println("Invalid date or format: " + e.getMessage());
+            return null; // Return null in case of an error
+        }
+    }
+
     public static void main(String[] args) {
-        String inputDate = "2023-10-05 15:30";
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        // Example usage
+        String inputDate = "2025-02-18 14:30:00";
+        String inputFormat = "yyyy-MM-dd HH:mm:ss";
 
-        // Parse the input as LocalDateTime
-        LocalDateTime localDateTime = LocalDateTime.parse(inputDate, formatter);
+        Date result = convertToUTC(inputDate, inputFormat);
 
-        // Manually calculate the offset (e.g., for "America/New_York")
-        ZoneId zone = ZoneId.of("America/New_York");
-        ZoneOffset offset = zone.getRules().getOffset(localDateTime);
-
-        // Convert to UTC
-        LocalDateTime utcTime = localDateTime.minusSeconds(offset.getTotalSeconds());
-
-        // Convert to Date
-        Date dateInUTC = Date.from(utcTime.toInstant(ZoneOffset.UTC));
-
-        System.out.println("UTC Time: " + utcTime.format(formatter));
-        System.out.println("Date object in UTC: " + dateInUTC);
+        if (result != null) {
+            // Format the Date to display it in UTC
+            SimpleDateFormat utcFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss 'UTC'");
+            utcFormatter.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+            System.out.println("Converted date (Date object in UTC): " + utcFormatter.format(result));
+        }
     }
 }
