@@ -1,98 +1,42 @@
-import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.util.Date;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.TimeZone;
+package com.example.demo.util;
 
-public class DateConverter {
+import java.lang.reflect.Method;
+import java.util.Map;
 
-    public static Date convertToUTCDate(String inputDateString) {
-        if (inputDateString == null || inputDateString.trim().isEmpty()) {
-            return null;
-        }
+public class BeanTransformer {
 
+    // Generic method to transform one object to another with custom field mappings
+    public static <S, T> T transform(S source, Class<T> targetClass, Map<String, String> fieldMappings) {
         try {
-            OffsetDateTime offsetDateTime = OffsetDateTime.parse(inputDateString);
-            return Date.from(offsetDateTime.toInstant());
-        } catch (DateTimeParseException e) {
-            System.err.println("Error parsing date string: " + e.getMessage());
-            return null;
-        }
-    }
-    public static Date convertStringToUTCDate_SimpleDateFormat(String inputDateString) {
-        if (inputDateString == null || inputDateString.trim().isEmpty()) {
-            return null;
-        }
-        try {
-            SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
-            inputFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-            return inputFormat.parse(inputDateString);
-        } catch (ParseException e) {
-            System.err.println("Error parsing date using SimpleDateFormat: " + e.getMessage());
-            return null;
-        }
-    }
+            T target = targetClass.getDeclaredConstructor().newInstance();
 
-    public static Date parseFormattedUTCToDate(String formattedDateString) {
-        if (formattedDateString == null || formattedDateString.trim().isEmpty()) {
-            return null;
-        }
+            Method[] sourceMethods = source.getClass().getMethods();
+            Method[] targetMethods = targetClass.getMethods();
 
-        // 1. Using java.time (Recommended)
-        try {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                    .withZone(ZoneOffset.UTC);
-            Instant instant = Instant.from(formatter.parse(formattedDateString));
-            return Date.from(instant);
-        } catch (DateTimeParseException e) {
-            System.err.println("Error parsing formatted date string (java.time): " + e.getMessage());
-            // return null; // Or re-throw the exception
-            //For continue the execution with SimpleDateFormat
-        }
+            for (Method sourceMethod : sourceMethods) {
+                if (sourceMethod.getName().startsWith("get")) {
+                    String sourceFieldName = sourceMethod.getName().substring(3);
+                    Object value = sourceMethod.invoke(source);
 
-        // 2. Using SimpleDateFormat (Legacy)
-        try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-            return sdf.parse(formattedDateString);
-        } catch (ParseException e) {
-            System.err.println("Error parsing formatted date string (SimpleDateFormat): " + e.getMessage());
-            return null; // Or throw an exception
-        }
-    }
-    public static void main(String[] args) {
-        String inputDateString = "2025-02-19T01:55:40Z";
+                    // Determine target field name based on mappings or use source field name
+                    String targetFieldName = fieldMappings.getOrDefault(sourceFieldName, sourceFieldName);
 
-        // --- java.time (Recommended) ---
-        Date utcDate = convertToUTCDate(inputDateString);
-        if (utcDate != null) {
+                    // Find corresponding setter in the target class
+                    for (Method targetMethod : targetMethods) {
+                        if (targetMethod.getName().equals("set" + targetFieldName) &&
+                            targetMethod.getParameterCount() == 1 &&
+                            targetMethod.getParameterTypes()[0].isAssignableFrom(sourceMethod.getReturnType())) {
 
-            // Formatting with SimpleDateFormat (Correct Way to Display in UTC)
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-            String formattedDateString =  sdf.format(utcDate);
-            System.out.println("SimpleDateFormat (UTC): " + formattedDateString);
-
-            // 2. Formatting with java.time.format.DateTimeFormatter (Best Practice)
-            Instant instant = utcDate.toInstant();
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                    .withZone(ZoneOffset.UTC);
-            formattedDateString = formatter.format(instant);
-            System.out.println("DateTimeFormatter (UTC): " + formattedDateString);
-
-            //Parse formatted String
-            Date parsedDate = parseFormattedUTCToDate(formattedDateString);
-            if(parsedDate != null){
-                System.out.println("Parsed Date from Formatted String: " + parsedDate); //Default System TimeZone
-                //If you want format.
-                System.out.println("Parsed Date from Formatted String (UTC Formatted): " + sdf.format(parsedDate));
+                            targetMethod.invoke(target, value);
+                            break;
+                        }
+                    }
+                }
             }
-
-
+            return target;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
     }
 }
